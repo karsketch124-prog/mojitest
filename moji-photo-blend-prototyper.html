@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>文字 × 写真 合成プロトタイパー</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@400;600;700&family=Space+Grotesk:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#15130e;
+    --panel:#1e1b14;
+    --panel-2:#272218;
+    --line:rgba(232,224,206,.14);
+    --line-strong:rgba(232,224,206,.28);
+    --ink:#ece6d6;
+    --ink-dim:#a39b89;
+    --ink-faint:#6f6859;
+    --accent:#4fd6c4;
+    --accent-dim:#2e9588;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Space Grotesk',system-ui,-apple-system,'Hiragino Sans','Noto Sans JP',sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  .wrap{max-width:1160px;margin:0 auto;padding:28px 22px 56px;}
+  header{margin-bottom:22px;}
+  .eyebrow{
+    font-family:'Space Mono',monospace;font-size:11px;letter-spacing:3px;
+    text-transform:uppercase;color:var(--accent-dim);margin:0 0 8px;
+  }
+  h1{font-size:26px;font-weight:700;margin:0;letter-spacing:.5px;}
+  .sub{color:var(--ink-dim);font-size:14px;margin:8px 0 0;line-height:1.6;max-width:60ch;}
+
+  .layout{display:grid;grid-template-columns:300px 1fr;gap:22px;align-items:start;}
+  @media (max-width:820px){
+    .wrap{padding:18px 13px 44px;}
+    .layout{grid-template-columns:1fr;gap:16px;}
+    .stage{order:-1;}
+    h1{font-size:22px;}
+    .sub{font-size:13px;}
+    .canvas-shell{min-height:230px;}
+  }
+
+  .panel{
+    background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;
+  }
+  .group{margin-bottom:20px;}
+  .group:last-child{margin-bottom:0;}
+  .label{
+    font-family:'Space Mono',monospace;font-size:11px;letter-spacing:2px;text-transform:uppercase;
+    color:var(--ink-faint);margin:0 0 9px;display:flex;justify-content:space-between;align-items:center;
+  }
+  .val{color:var(--accent);}
+
+  textarea{
+    width:100%;min-height:88px;resize:vertical;background:var(--panel-2);color:var(--ink);
+    border:1px solid var(--line);border-radius:9px;padding:10px 12px;font-size:14px;
+    font-family:inherit;line-height:1.5;
+  }
+  textarea:focus{outline:none;border-color:var(--accent-dim);}
+
+  .modes{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
+  .mode{
+    background:var(--panel-2);border:1px solid var(--line);color:var(--ink-dim);
+    border-radius:9px;padding:9px 6px;font-size:13px;font-family:inherit;cursor:pointer;
+    transition:border-color .12s,color .12s;
+  }
+  .mode:hover{border-color:var(--line-strong);color:var(--ink);}
+  .mode.on{border-color:var(--accent);color:var(--accent);background:rgba(79,214,196,.07);}
+
+  .presets{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
+  .preset{
+    background:var(--panel-2);border:1px solid var(--line-strong);color:var(--ink);
+    border-radius:9px;padding:11px 6px;font-size:13px;font-family:inherit;cursor:pointer;
+    transition:border-color .12s,background .12s,transform .08s;
+  }
+  .preset:hover{border-color:var(--accent);color:var(--accent);}
+  .preset:active{transform:scale(.97);}
+
+  .row{display:flex;align-items:center;gap:10px;}
+  input[type=range]{flex:1;accent-color:var(--accent);height:4px;cursor:pointer;}
+  input[type=color]{
+    width:40px;height:32px;padding:0;border:1px solid var(--line);border-radius:8px;
+    background:var(--panel-2);cursor:pointer;
+  }
+  select{
+    width:100%;background:var(--panel-2);color:var(--ink);border:1px solid var(--line);
+    border-radius:9px;padding:9px 11px;font-size:14px;font-family:inherit;cursor:pointer;
+  }
+  select:focus{outline:none;border-color:var(--accent-dim);}
+
+  .toggle{
+    display:flex;align-items:center;gap:9px;cursor:pointer;user-select:none;font-size:14px;color:var(--ink-dim);
+  }
+  .toggle input{accent-color:var(--accent);width:16px;height:16px;cursor:pointer;}
+
+  .btn{
+    width:100%;background:var(--panel-2);border:1px solid var(--line-strong);color:var(--ink);
+    border-radius:9px;padding:11px;font-size:14px;font-family:inherit;cursor:pointer;
+    transition:border-color .12s,background .12s;
+  }
+  .btn:hover{border-color:var(--accent-dim);}
+  .btn.primary{background:var(--accent);color:#0e2b27;border-color:var(--accent);font-weight:700;}
+  .btn.primary:hover{background:#5fe3d1;}
+  .btnrow{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
+
+  /* preview */
+  .stage{display:flex;flex-direction:column;gap:12px;}
+  .canvas-shell{
+    position:relative;border:1px solid var(--line);border-radius:14px;overflow:hidden;
+    background:
+      repeating-conic-gradient(#221e16 0% 25%, #1b180f 0% 50%) 0 0 / 26px 26px;
+    min-height:340px;display:flex;align-items:center;justify-content:center;
+  }
+  canvas{max-width:100%;height:auto;display:none;border-radius:13px;}
+  .drop{
+    text-align:center;color:var(--ink-faint);padding:54px 24px;width:100%;
+  }
+  .drop.hl{color:var(--accent);}
+  .drop .big{font-size:15px;color:var(--ink-dim);margin:0 0 6px;}
+  .drop .small{font-size:13px;margin:0;}
+  .drop button{
+    margin-top:16px;background:var(--accent);color:#0e2b27;border:none;border-radius:9px;
+    padding:10px 20px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;
+  }
+  .hint{
+    font-size:13px;color:var(--ink-dim);line-height:1.6;background:var(--panel);
+    border:1px solid var(--line);border-left:3px solid var(--accent-dim);border-radius:0 10px 10px 0;
+    padding:12px 14px;margin:0;
+  }
+  .hint b{color:var(--ink);font-weight:700;}
+  .note{font-size:12px;color:var(--ink-faint);line-height:1.6;margin:18px 0 0;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="eyebrow">prototype · runs in your browser</p>
+    <h1>文字 × 写真 合成プロトタイパー</h1>
+    <p class="sub">画像を読み込んで、ワードを散らし、合成モード（乗算 / スクリーン / オーバーレイ）を切り替えて即確認。画像はこのブラウザの中だけで処理され、どこにも送信されません。</p>
+  </header>
+
+  <div class="layout">
+    <div class="panel">
+      <div class="group">
+        <p class="label">ワード（改行 or カンマ区切り）</p>
+        <textarea id="words" spellcheck="false">SIGNAL LOST
+DEEP SPACE
+NEBULA
+ORBIT DECAY
+VECTOR
+ECHO CHAMBER
+HORIZON
+PULSE WAVE</textarea>
+      </div>
+
+      <div class="group">
+        <p class="label">合成モード</p>
+        <div class="modes" id="modes">
+          <button class="mode" data-m="source-over">通常</button>
+          <button class="mode" data-m="multiply">乗算</button>
+          <button class="mode on" data-m="screen">スクリーン</button>
+          <button class="mode" data-m="overlay">オーバーレイ</button>
+          <button class="mode" data-m="soft-light" style="grid-column:1 / -1;">ソフトライト</button>
+        </div>
+      </div>
+
+      <div class="group">
+        <p class="label">文字色 <span class="val" id="opv">70%</span></p>
+        <div class="row">
+          <input type="color" id="color" value="#8d8d8d">
+          <input type="range" id="opacity" min="0" max="100" value="70" step="1">
+        </div>
+      </div>
+
+      <div class="group">
+        <p class="label">文字サイズ <span class="val" id="szv">1.0×</span></p>
+        <input type="range" id="size" min="40" max="220" value="100" step="5">
+      </div>
+
+      <div class="group">
+        <p class="label">字間（トラッキング）<span class="val" id="lsv">1px</span></p>
+        <input type="range" id="spacing" min="-4" max="40" value="1" step="1">
+      </div>
+
+      <div class="group">
+        <p class="label">行間 <span class="val" id="lhv">1.0×</span></p>
+        <input type="range" id="line" min="70" max="220" value="100" step="5">
+      </div>
+
+      <div class="group">
+        <p class="label">影の強さ <span class="val" id="dpv">0</span></p>
+        <input type="range" id="depth" min="0" max="24" value="0" step="1">
+        <div class="modes" id="shtype" style="margin-top:9px;">
+          <button class="mode on" data-s="drop">ドロップ</button>
+          <button class="mode" data-s="glow">グロー（発光）</button>
+        </div>
+      </div>
+
+      <div class="group" id="shdir-wrap">
+        <p class="label">影の向き <span class="val" id="agv">45°</span></p>
+        <input type="range" id="angle" min="0" max="345" value="45" step="15">
+      </div>
+
+      <div class="group">
+        <p class="label">影の色</p>
+        <div class="row">
+          <input type="color" id="shcolor" value="#0a0a0c">
+          <span style="font-size:12px;color:var(--ink-faint);line-height:1.4;">白〜シアンにするとグローがSF発光に</span>
+        </div>
+      </div>
+
+      <div class="group">
+        <p class="label">密度（配置数）<span class="val" id="dnv">26</span></p>
+        <input type="range" id="density" min="6" max="80" value="26" step="1">
+      </div>
+
+      <div class="group">
+        <p class="label">フォント</p>
+        <select id="font">
+          <option value="Anton">Anton（極太・ポスター）</option>
+          <option value="Oswald" selected>Oswald（コンデンス）</option>
+          <option value="'Space Mono'">Space Mono（テック / SF）</option>
+          <option value="Georgia">Georgia（明朝風セリフ）</option>
+          <option value="system-ui">System Sans</option>
+        </select>
+      </div>
+
+      <div class="group">
+        <label class="toggle"><input type="checkbox" id="upper" checked>英字を大文字にする</label>
+      </div>
+
+      <div class="group">
+        <p class="label">プリセット（世界観を一発で）</p>
+        <div class="presets">
+          <button class="preset" data-p="film">フィルム調</button>
+          <button class="preset" data-p="mono">モノクロ</button>
+          <button class="preset" data-p="sf">SF</button>
+          <button class="preset" data-p="yohaku">余白</button>
+        </div>
+      </div>
+
+      <div class="group">
+        <div class="btnrow">
+          <button class="btn" id="shuffle">配置をシャッフル</button>
+          <button class="btn" id="reset">リセット</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="stage">
+      <div class="canvas-shell" id="shell">
+        <div class="drop" id="drop">
+          <p class="big">ここに画像をドラッグ＆ドロップ</p>
+          <p class="small">お手持ちの写真をそのままドラッグでOK</p>
+          <button id="pick">画像を選ぶ</button>
+          <input type="file" id="file" accept="image/*" hidden>
+        </div>
+        <canvas id="cv"></canvas>
+      </div>
+
+      <p class="hint" id="hint"><b>スクリーン</b>：明るい文字が暗い背景に乗ると光り、白っぽい背景ではほぼ消えます。暗い写真に最適。</p>
+
+      <div class="btnrow">
+        <button class="btn" id="newimg">別の画像に差し替え</button>
+        <button class="btn primary" id="export">PNGで書き出し</button>
+      </div>
+
+      <p class="note">個人利用のみ・商用利用不可。他者が権利を持つ写真・アーティスト名・曲名などは使用せず、ご自身で撮影・制作した素材とオリジナルのワードでご利用ください。</p>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var cv = document.getElementById('cv');
+  var ctx = cv.getContext('2d');
+  var img = null;
+  var seed = 1234;
+  var blend = 'screen';
+  var shadowType = 'drop';
+
+  var hints = {
+    'source-over':'<b>通常</b>：背景に関係なく文字はベタ塗りのまま。馴染まず「のっかってる」見え方です。',
+    'multiply':'<b>乗算</b>：暗い背景では文字がほぼ消え、白い背景では濃く出ます。明るい写真向き。',
+    'screen':'<b>スクリーン</b>：明るい文字が暗い背景に乗ると光り、白っぽい背景ではほぼ消えます。暗い写真に最適。',
+    'overlay':'<b>オーバーレイ</b>：背景の明暗に文字が反応し、写真の質感に溶け込みます。一番「馴染む」モード。',
+    'soft-light':'<b>ソフトライト</b>：オーバーレイの柔らかい版。コントラストを抑えて静かに馴染ませたいとき。'
+  };
+
+  function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+
+  function getWords(){
+    return document.getElementById('words').value
+      .split(/[\n,、]+/).map(function(s){return s.trim();}).filter(Boolean);
+  }
+
+  var placements = [];
+  function buildLayout(){
+    var words = getWords();
+    placements = [];
+    if(!words.length) return;
+    var rng = mulberry32(seed);
+    var count = parseInt(document.getElementById('density').value,10);
+    for(var i=0;i<count;i++){
+      var r = rng();
+      var tier = r<0.16 ? 0.12 : (r<0.42 ? 0.075 : 0.046);
+      placements.push({
+        text: words[Math.floor(rng()*words.length)],
+        tier: tier,
+        xf: 0.04 + rng()*0.92,
+        yf: 0.06 + rng()*0.88,
+        wf: 0.24 + rng()*0.30,
+        align: rng()<0.5 ? 'left' : (rng()<0.5?'center':'right')
+      });
+    }
+  }
+
+  function render(){
+    if(!img){return;}
+    var W = cv.width, H = cv.height;
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.clearRect(0,0,W,H);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+    ctx.drawImage(img,0,0,W,H);
+
+    var color = document.getElementById('color').value;
+    var op = parseInt(document.getElementById('opacity').value,10)/100;
+    var scale = parseInt(document.getElementById('size').value,10)/100;
+    var fam = document.getElementById('font').value;
+    var upper = document.getElementById('upper').checked;
+    var weight = (fam.indexOf('Anton')>=0) ? '400' : '700';
+    var stack = fam + ",'Hiragino Sans','Noto Sans JP',sans-serif";
+
+    ctx.globalCompositeOperation = blend;
+    ctx.globalAlpha = op;
+    ctx.fillStyle = color;
+    ctx.textBaseline = 'middle';
+    var ls = parseInt(document.getElementById('spacing').value,10);
+    try{ctx.letterSpacing = ls + 'px';}catch(e){}
+    var lh = parseInt(document.getElementById('line').value,10)/100;
+    var depth = parseInt(document.getElementById('depth').value,10);
+    var shColor = document.getElementById('shcolor').value;
+    var ang = parseInt(document.getElementById('angle').value,10) * Math.PI/180;
+    var ux = Math.cos(ang), uy = Math.sin(ang);
+
+    function wrap(text, maxW){
+      var parts = text.split(' ');
+      var lines = [], cur = '';
+      for(var k=0;k<parts.length;k++){
+        var test = cur ? cur + ' ' + parts[k] : parts[k];
+        if(cur && ctx.measureText(test).width > maxW){ lines.push(cur); cur = parts[k]; }
+        else { cur = test; }
+      }
+      if(cur) lines.push(cur);
+      return lines;
+    }
+
+    for(var i=0;i<placements.length;i++){
+      var p = placements[i];
+      var fs = Math.round(H * p.tier * scale);
+      ctx.font = weight + ' ' + fs + 'px ' + stack;
+      ctx.textAlign = p.align;
+      var t = upper ? p.text.toUpperCase() : p.text;
+      var lines = wrap(t, p.wf*W);
+      var gap = fs * lh;
+      var y0 = p.yf*H - (lines.length-1)*gap/2;
+      for(var j=0;j<lines.length;j++){
+        var lx = p.xf*W, ly = y0 + j*gap;
+        if(depth > 0 && shadowType === 'drop'){
+          ctx.save();
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.globalAlpha = 0.45;
+          ctx.fillStyle = shColor;
+          for(var d=depth; d>=1; d--){
+            ctx.fillText(lines[j], lx + d*ux, ly + d*uy);
+          }
+          ctx.restore();
+        }
+        if(depth > 0 && shadowType === 'glow'){
+          ctx.shadowColor = shColor;
+          ctx.shadowBlur = depth * 1.7;
+        }
+        ctx.fillText(lines[j], lx, ly);
+        ctx.shadowBlur = 0;
+        ctx.shadowColor = 'transparent';
+      }
+    }
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+  }
+
+  function loadImage(file){
+    if(!file || !/^image\//.test(file.type)) return;
+    var reader = new FileReader();
+    reader.onload = function(e){
+      var im = new Image();
+      im.onload = function(){
+        var maxSide = 1600;
+        var s = Math.min(1, maxSide/Math.max(im.naturalWidth, im.naturalHeight));
+        cv.width = Math.round(im.naturalWidth*s);
+        cv.height = Math.round(im.naturalHeight*s);
+        img = im;
+        document.getElementById('drop').style.display = 'none';
+        cv.style.display = 'block';
+        buildLayout();
+        render();
+      };
+      im.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // file picking
+  var fileInput = document.getElementById('file');
+  document.getElementById('pick').addEventListener('click',function(){fileInput.click();});
+  document.getElementById('newimg').addEventListener('click',function(){fileInput.click();});
+  fileInput.addEventListener('change',function(e){ if(e.target.files[0]) loadImage(e.target.files[0]); });
+
+  // drag & drop
+  var shell = document.getElementById('shell');
+  var drop = document.getElementById('drop');
+  ['dragenter','dragover'].forEach(function(ev){
+    shell.addEventListener(ev,function(e){e.preventDefault();drop.classList.add('hl');});
+  });
+  ['dragleave','drop'].forEach(function(ev){
+    shell.addEventListener(ev,function(e){e.preventDefault();drop.classList.remove('hl');});
+  });
+  shell.addEventListener('drop',function(e){
+    if(e.dataTransfer.files && e.dataTransfer.files[0]) loadImage(e.dataTransfer.files[0]);
+  });
+
+  // controls
+  function reLayout(){ buildLayout(); render(); }
+  document.getElementById('words').addEventListener('input', reLayout);
+  document.getElementById('density').addEventListener('input', function(e){
+    document.getElementById('dnv').textContent = e.target.value; reLayout();
+  });
+  document.getElementById('opacity').addEventListener('input', function(e){
+    document.getElementById('opv').textContent = e.target.value + '%'; render();
+  });
+  document.getElementById('size').addEventListener('input', function(e){
+    document.getElementById('szv').textContent = (e.target.value/100).toFixed(1) + '×'; render();
+  });
+  document.getElementById('spacing').addEventListener('input', function(e){
+    document.getElementById('lsv').textContent = e.target.value + 'px'; render();
+  });
+  document.getElementById('line').addEventListener('input', function(e){
+    document.getElementById('lhv').textContent = (e.target.value/100).toFixed(1) + '×'; render();
+  });
+  document.getElementById('depth').addEventListener('input', function(e){
+    document.getElementById('dpv').textContent = e.target.value; render();
+  });
+  document.getElementById('color').addEventListener('input', render);
+  document.getElementById('font').addEventListener('change', render);
+  document.getElementById('upper').addEventListener('change', render);
+
+  var modeBtns = document.querySelectorAll('#modes .mode');
+  modeBtns.forEach(function(b){
+    b.addEventListener('click',function(){
+      blend = b.getAttribute('data-m');
+      modeBtns.forEach(function(x){x.classList.toggle('on', x===b);});
+      document.getElementById('hint').innerHTML = hints[blend];
+      render();
+    });
+  });
+
+  document.getElementById('shuffle').addEventListener('click',function(){
+    seed = Math.floor(Math.random()*1e9); reLayout();
+  });
+
+  document.getElementById('reset').addEventListener('click',function(){
+    document.getElementById('color').value = '#8d8d8d';
+    document.getElementById('opacity').value = 70;  document.getElementById('opv').textContent = '70%';
+    document.getElementById('size').value = 100;     document.getElementById('szv').textContent = '1.0×';
+    document.getElementById('density').value = 26;   document.getElementById('dnv').textContent = '26';
+    document.getElementById('font').value = 'Oswald';
+    document.getElementById('upper').checked = true;
+    document.getElementById('spacing').value = 1;    document.getElementById('lsv').textContent = '1px';
+    document.getElementById('line').value = 100;     document.getElementById('lhv').textContent = '1.0×';
+    document.getElementById('depth').value = 0;      document.getElementById('dpv').textContent = '0';
+    document.getElementById('shcolor').value = '#0a0a0c';
+    document.getElementById('angle').value = 45;     document.getElementById('agv').textContent = '45°';
+    shadowType = 'drop';
+    document.querySelectorAll('#shtype .mode').forEach(function(x){
+      x.classList.toggle('on', x.getAttribute('data-s')==='drop');
+    });
+    document.getElementById('shdir-wrap').style.display = '';
+    setMode('screen');
+    buildLayout(); render();
+  });
+
+  document.getElementById('angle').addEventListener('input', function(e){
+    document.getElementById('agv').textContent = e.target.value + '°'; render();
+  });
+  document.getElementById('shcolor').addEventListener('input', render);
+
+  var shBtns = document.querySelectorAll('#shtype .mode');
+  shBtns.forEach(function(b){
+    b.addEventListener('click',function(){
+      shadowType = b.getAttribute('data-s');
+      shBtns.forEach(function(x){x.classList.toggle('on', x===b);});
+      document.getElementById('shdir-wrap').style.display = (shadowType==='glow') ? 'none' : '';
+      render();
+    });
+  });
+
+  var presets = {
+    film:   {color:'#ecdfc4', op:62, blend:'screen',     font:'Georgia',      upper:false, ls:1,  lh:112, dn:22, dp:0,  st:'drop', sc:'#0a0a0c'},
+    mono:   {color:'#f4f4f2', op:85, blend:'overlay',    font:'Anton',        upper:true,  ls:2,  lh:94,  dn:30, dp:7,  st:'drop', sc:'#0a0a0c'},
+    sf:     {color:'#74e0d2', op:80, blend:'screen',     font:"'Space Mono'", upper:true,  ls:9,  lh:106, dn:32, dp:14, st:'glow', sc:'#37e3d6'},
+    yohaku: {color:'#bcb6a6', op:40, blend:'screen',     font:'Oswald',       upper:false, ls:4,  lh:122, dn:9,  dp:0,  st:'drop', sc:'#0a0a0c'}
+  };
+  function setMode(m){
+    blend = m;
+    modeBtns.forEach(function(x){x.classList.toggle('on', x.getAttribute('data-m')===m);});
+    document.getElementById('hint').innerHTML = hints[m];
+  }
+  function applyPreset(name){
+    var p = presets[name]; if(!p) return;
+    document.getElementById('color').value = p.color;
+    document.getElementById('opacity').value = p.op;  document.getElementById('opv').textContent = p.op + '%';
+    document.getElementById('font').value = p.font;
+    document.getElementById('upper').checked = p.upper;
+    document.getElementById('spacing').value = p.ls;  document.getElementById('lsv').textContent = p.ls + 'px';
+    document.getElementById('line').value = p.lh;     document.getElementById('lhv').textContent = (p.lh/100).toFixed(1) + '×';
+    document.getElementById('density').value = p.dn;  document.getElementById('dnv').textContent = p.dn;
+    document.getElementById('depth').value = p.dp;    document.getElementById('dpv').textContent = p.dp;
+    document.getElementById('shcolor').value = p.sc;
+    shadowType = p.st;
+    document.querySelectorAll('#shtype .mode').forEach(function(x){
+      x.classList.toggle('on', x.getAttribute('data-s')===p.st);
+    });
+    document.getElementById('shdir-wrap').style.display = (p.st==='glow') ? 'none' : '';
+    setMode(p.blend);
+    buildLayout(); render();
+  }
+  document.querySelectorAll('.preset').forEach(function(b){
+    b.addEventListener('click',function(){ applyPreset(b.getAttribute('data-p')); });
+  });
+
+  document.getElementById('export').addEventListener('click',function(){
+    if(!img){ return; }
+    try{
+      var url = cv.toDataURL('image/png');
+      var a = document.createElement('a');
+      a.href = url; a.download = 'blend-prototype.png';
+      document.body.appendChild(a); a.click(); a.remove();
+    }catch(err){
+      window.open(cv.toDataURL('image/png'),'_blank');
+    }
+  });
+
+  if(document.fonts && document.fonts.ready){
+    document.fonts.ready.then(function(){ if(img) render(); });
+  }
+})();
+</script>
+</body>
+</html>
